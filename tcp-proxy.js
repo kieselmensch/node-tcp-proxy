@@ -194,13 +194,13 @@ TcpProxy.prototype.createServiceSocket = function(context) {
         if (context.proxySocket !== undefined) {
             context.proxySocket.destroy();
         }
-        self.log('Disconnect server for '.concat(uniqueKey(conect.proxySocket)));
+        self.log('Disconnect server for '.concat(uniqueKey(context.proxySocket)));
     });
     context.serviceSocket.on("error", function(e) {
         if (context.proxySocket !== undefined) {
             context.proxySocket.destroy();
         }
-        self.log('Error server for '.concat(uniqueKey(conect.proxySocket)));
+        self.log('Error server for '.concat(uniqueKey(context.proxySocket)));
     });
 };
 
