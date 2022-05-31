@@ -52,6 +52,7 @@ function TcpProxy(proxyPort, serviceHost, servicePort, options) {
     }
     if (this.options.allowedIPs.length !== 0) {
         this.allowedIPs = this.options.allowedIPs;
+        this.log('Will only allow these IPs: '.concat(this.allowedIPs.join(', ')));
     }
     this.createListener();
 }
@@ -69,7 +70,7 @@ TcpProxy.prototype.parseOptions = function(options) {
 
 TcpProxy.prototype.createListener = function() {
     var self = this;
-    if (self.options.tls) {
+    if (self.options.tls && ( self.options.tls === 'both' || self.options.tls === 'client' ) ) {
         self.server = tls.createServer(self.proxyTlsOptions, function(socket) {
             self.handleClientConnection(socket);
         });
@@ -151,6 +152,7 @@ TcpProxy.prototype.handleClient = function(proxySocket) {
             context.serviceSocket.destroy();
         }
     });
+    self.createServiceSocket(context);
 };
 
 TcpProxy.prototype.handleUpstreamData = function(context, data) {
@@ -171,7 +173,7 @@ TcpProxy.prototype.handleUpstreamData = function(context, data) {
 TcpProxy.prototype.createServiceSocket = function(context) {
     var self = this;
     var options = self.parseServiceOptions(context);
-    if (self.options.tls === "both") {
+    if (self.options.tls === "both" || self.options.tls === 'server') {
         context.serviceSocket = tls.connect(options, function() {
             self.writeBuffer(context);
         });
