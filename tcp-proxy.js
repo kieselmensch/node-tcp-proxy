@@ -132,6 +132,7 @@ TcpProxy.prototype.handleAuth = function(proxySocket) {
 TcpProxy.prototype.handleClient = function(proxySocket) {
     var self = this;
     var key = uniqueKey(proxySocket);
+    self.log('Connection from '.concat(key));
     self.proxySockets[`${key}`] = proxySocket;
     var context = {
         buffers: [],
@@ -146,11 +147,13 @@ TcpProxy.prototype.handleClient = function(proxySocket) {
         if (context.serviceSocket !== undefined) {
             context.serviceSocket.destroy();
         }
+        self.log('Disconnect client from '.concat(uniqueKey(proxySocket)));
     });
     proxySocket.on("error", function(e) {
         if (context.serviceSocket !== undefined) {
             context.serviceSocket.destroy();
         }
+        self.log('Error client from '.concat(uniqueKey(proxySocket)));
     });
     self.createServiceSocket(context);
 };
@@ -191,11 +194,13 @@ TcpProxy.prototype.createServiceSocket = function(context) {
         if (context.proxySocket !== undefined) {
             context.proxySocket.destroy();
         }
+        self.log('Disconnect server for '.concat(uniqueKey(conect.proxySocket)));
     });
     context.serviceSocket.on("error", function(e) {
         if (context.proxySocket !== undefined) {
             context.proxySocket.destroy();
         }
+        self.log('Error server for '.concat(uniqueKey(conect.proxySocket)));
     });
 };
 
