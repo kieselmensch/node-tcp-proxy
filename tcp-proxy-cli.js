@@ -20,8 +20,7 @@ argv
     .option("-l, --localPort <port>",
         "Port number to use to connect to service")
     .option("-q, --q", "Be quiet")
-    .option("-t, --tls [both]", "Use TLS 1.2 with clients; " +
-        "specify both to also use TLS 1.2 with service", false)
+    .option("-t, --tls [both|client|server]", "Use TLS 1.2 with clients, server or both", false)
     .option("-u, --rejectUnauthorized [value]",
         "Do not accept invalid certificate", false)
     .option("-c, --pfx [file]", "Private key file",
