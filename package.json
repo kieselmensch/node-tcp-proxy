@@ -7,7 +7,7 @@
     "types": "./index.d.ts",
     "repository": {
         "type": "git",
-        "url": "https://github.com/tewarid/node-tcp-proxy.git"
+        "url": "https://github.com/kieselmensch/node-tcp-proxy.git"
     },
     "bin": {
         "tcpproxy": "./tcp-proxy-cli.js"
@@ -16,9 +16,9 @@
         "commander": "^2.19.0"
     },
     "devDependencies": {
-        "eslint": "^8.9.0",
+        "eslint": "^9.38.0",
         "eslint-config-google": "^0.14.0",
-        "eslint-plugin-security": "^1.4.0"
+        "eslint-plugin-security": "^3.0.1"
     },
     "false": {}
 }
