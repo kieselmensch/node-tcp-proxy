@@ -11,7 +11,7 @@ ARG NODE_VERSION=12.22.12
 FROM node:${NODE_VERSION}-alpine
 
 # Use production node environment by default.
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 
 WORKDIR /usr/src/app
@@ -34,7 +34,5 @@ COPY . .
 # Expose the port that the application listens on.
 EXPOSE 58241
 
-ENTRYPOINT [ "node tcp-proxy-cli.js --proxyPort 58241" ]
-
 # Run the application.
-CMD ["--serviceHost localhost", "--servicePort 993"]
+ENTRYPOINT [ "/usr/local/bin/node", "tcp-proxy-cli.js"]
