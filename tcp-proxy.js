@@ -1,258 +1,277 @@
-var net = require("net");
-var tls = require('tls');
-var fs = require('fs');
-var util = require('util');
+const net = require('net');
+const tls = require('tls');
+const fs = require('fs');
+const util = require('util');
 
-module.exports.createProxy = function(proxyPort,
-    serviceHost, servicePort, options) {
+/**
+ * Creates a new TCP proxy instance.
+ * @param {number} proxyPort - Port to listen on.
+ * @param {string|string[]|number} serviceHost - Host(s) to forward traffic to.
+ * @param {string|string[]|number} servicePort - Port(s) to forward traffic to.
+ * @param {Object} options - Configuration options.
+ */
+module.exports.createProxy = (proxyPort, serviceHost, servicePort, options) => {
     return new TcpProxy(proxyPort, serviceHost, servicePort, options);
 };
 
 function uniqueKey(socket) {
-    var key = socket.remoteAddress + ":" + socket.remotePort;
-    return key;
+    return `${socket.remoteAddress}:${socket.remotePort}`;
 }
 
 function parse(o) {
-    if (typeof o === "string") {
-        return o.split(",");
-    } else if (typeof o === "number") {
+    if (typeof o === 'string') {
+        return o.split(',');
+    } else if (typeof o === 'number') {
         return parse(o.toString());
     } else if (Array.isArray(o)) {
         return o;
     } else {
-        throw new Error("cannot parse object: " + o);
+        throw new Error(`cannot parse object: ${o}`);
     }
 }
 
-function TcpProxy(proxyPort, serviceHost, servicePort, options) {
-    this.proxyPort = proxyPort;
-    this.serviceHosts = parse(serviceHost);
-    this.servicePorts = parse(servicePort);
-    this.serviceHostIndex = -1;
-    this.options = this.parseOptions(options);
-    this.proxyTlsOptions = {
-        passphrase: this.options.passphrase,
-        secureProtocol: "TLSv1_2_method"
-    };
-    if (this.options.tls) {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        this.proxyTlsOptions.pfx = fs.readFileSync(this.options.pfx);
-    }
-    this.serviceTlsOptions = {
-        rejectUnauthorized: this.options.rejectUnauthorized,
-        secureProtocol: "TLSv1_2_method"
-    };
-    this.proxySockets = {};
-    if (this.options.identUsers.length !== 0) {
-        this.users = this.options.identUsers;
-        this.log('Will only allow these users: '.concat(this.users.join(', ')));
-    } else {
-        this.log('Will allow all users');
-    }
-    if (this.options.allowedIPs.length !== 0) {
-        this.allowedIPs = this.options.allowedIPs;
-        this.log('Will only allow these IPs: '.concat(this.allowedIPs.join(', ')));
-    }
-    this.createListener();
-}
+class TcpProxy {
+    constructor(proxyPort, serviceHost, servicePort, options) {
+        this.proxyPort = proxyPort;
+        this.serviceHosts = parse(serviceHost);
+        this.servicePorts = parse(servicePort);
+        this.serviceHostIndex = -1;
+        this.options = this.parseOptions(options);
 
-TcpProxy.prototype.parseOptions = function(options) {
-    return Object.assign({
-        quiet: true,
-        pfx: require.resolve('./cert.pfx'),
-        passphrase: 'abcd',
-        rejectUnauthorized: true,
-        identUsers: [],
-        allowedIPs: []
-    }, options);
-};
+        this.proxyTlsOptions = {
+            passphrase: this.options.passphrase,
+            secureProtocol: 'TLSv1_2_method'
+        };
 
-TcpProxy.prototype.createListener = function() {
-    var self = this;
-    if (self.options.tls && ( self.options.tls === 'both' || self.options.tls === 'client' ) ) {
-        self.server = tls.createServer(self.proxyTlsOptions, function(socket) {
-            self.handleClientConnection(socket);
-        });
-    } else {
-        self.server = net.createServer(function(socket) {
-            self.handleClientConnection(socket);
-        });
-    }
-    self.server.listen(self.proxyPort, self.options.hostname);
-};
+        if (this.options.tls) {
+            // eslint-disable-next-line security/detect-non-literal-fs-filename
+            this.proxyTlsOptions.pfx = fs.readFileSync(this.options.pfx);
+        }
 
-TcpProxy.prototype.handleClientConnection = function(socket) {
-    var self = this;
-    if (self.users) {
-        self.handleAuth(socket);
-    } else {
-        self.handleClient(socket);
-    }
-};
+        this.serviceTlsOptions = {
+            rejectUnauthorized: this.options.rejectUnauthorized,
+            secureProtocol: 'TLSv1_2_method'
+        };
 
-// RFC 1413 authentication
-TcpProxy.prototype.handleAuth = function(proxySocket) {
-    var self = this;
-    if (self.allowedIPs.includes(proxySocket.remoteAddress)) {
-        self.handleClient(proxySocket);
-        return;
+        this.proxySockets = {};
+
+        if (this.options.identUsers.length !== 0) {
+            this.users = this.options.identUsers;
+            this.log(`Will only allow these users: ${this.users.join(', ')}`);
+        } else {
+            this.log('Will allow all users');
+        }
+
+        if (this.options.allowedIPs.length !== 0) {
+            this.allowedIPs = this.options.allowedIPs;
+            this.log(`Will only allow these IPs: ${this.allowedIPs.join(', ')}`);
+        }
+
+        this.createListener();
     }
-    var query = util.format("%d, %d", proxySocket.remotePort, this.proxyPort);
-    var ident = new net.Socket();
-    var resp = undefined;
-    ident.on('error', function(e) {
-        resp = false;
-        ident.destroy();
-    });
-    ident.on('data', function(data) {
-        resp = data.toString().trim();
-        ident.destroy();
-    });
-    ident.on('close', function(data) {
-        if (!resp) {
-            self.log('No identd');
-            proxySocket.destroy();
+
+    parseOptions(options) {
+        return Object.assign({
+            quiet: true,
+            pfx: require.resolve('./cert.pfx'),
+            passphrase: 'abcd',
+            rejectUnauthorized: true,
+            identUsers: [],
+            allowedIPs: []
+        }, options);
+    }
+
+    createListener() {
+        if (this.options.tls && (this.options.tls === 'both' || this.options.tls === 'client')) {
+            this.server = tls.createServer(this.proxyTlsOptions, (socket) => {
+                this.handleClientConnection(socket);
+            });
+        } else {
+            this.server = net.createServer((socket) => {
+                this.handleClientConnection(socket);
+            });
+        }
+        this.server.listen(this.proxyPort, this.options.hostname);
+    }
+
+    handleClientConnection(socket) {
+        if (this.users) {
+            this.handleAuth(socket);
+        } else {
+            this.handleClient(socket);
+        }
+    }
+
+    // RFC 1413 authentication
+    handleAuth(proxySocket) {
+        if (this.allowedIPs.includes(proxySocket.remoteAddress)) {
+            this.handleClient(proxySocket);
             return;
         }
-        var user = resp.split(':').pop();
-        if (!self.users.includes(user)) {
-            self.log(util.format('User "%s" unauthorized', user));
-            proxySocket.destroy();
-        } else {
-            self.handleClient(proxySocket);
-        }
-    });
-    ident.connect(113, proxySocket.remoteAddress, function() {
-        ident.write(query);
-        ident.end();
-    });
-};
 
-TcpProxy.prototype.handleClient = function(proxySocket) {
-    var self = this;
-    var key = uniqueKey(proxySocket);
-    self.log('Connection from '.concat(key));
-    self.proxySockets[`${key}`] = proxySocket;
-    var context = {
-        buffers: [],
-        connected: false,
-        proxySocket: proxySocket
-    };
-    proxySocket.on("data", function(data) {
-        self.handleUpstreamData(context, data);
-    });
-    proxySocket.on("close", function(hadError) {
-        delete self.proxySockets[uniqueKey(proxySocket)];
-        if (context.serviceSocket !== undefined) {
-            context.serviceSocket.destroy();
-        }
-        self.log('Disconnect client from '.concat(uniqueKey(proxySocket)));
-    });
-    proxySocket.on("error", function(e) {
-        if (context.serviceSocket !== undefined) {
-            context.serviceSocket.destroy();
-        }
-        self.log('Error client from '.concat(uniqueKey(proxySocket)));
-    });
-    self.createServiceSocket(context);
-};
+        const query = util.format('%d, %d', proxySocket.remotePort, this.proxyPort);
+        const ident = new net.Socket();
+        let resp = undefined;
 
-TcpProxy.prototype.handleUpstreamData = function(context, data) {
-    var self = this;
-    Promise.resolve(self.intercept(self.options.upstream, context, data))
-        .then((processedData) => {
-            if (context.connected) {
-                context.serviceSocket.write(processedData);
+        ident.on('error', (e) => {
+            resp = false;
+            ident.destroy();
+        });
+
+        ident.on('data', (data) => {
+            resp = data.toString().trim();
+            ident.destroy();
+        });
+
+        ident.on('close', () => {
+            if (!resp) {
+                this.log('No identd');
+                proxySocket.destroy();
+                return;
+            }
+            const user = resp.split(':').pop();
+            if (!this.users.includes(user)) {
+                this.log(`User "${user}" unauthorized`);
+                proxySocket.destroy();
             } else {
-                context.buffers[context.buffers.length] = processedData;
-                if (context.serviceSocket === undefined) {
-                    self.createServiceSocket(context);
-                }
+                this.handleClient(proxySocket);
             }
         });
-};
 
-TcpProxy.prototype.createServiceSocket = function(context) {
-    var self = this;
-    var options = self.parseServiceOptions(context);
-    if (self.options.tls === "both" || self.options.tls === 'server') {
-        context.serviceSocket = tls.connect(options, function() {
-            self.writeBuffer(context);
-        });
-    } else {
-        context.serviceSocket = new net.Socket();
-        context.serviceSocket.connect(options, function() {
-            self.writeBuffer(context);
+        ident.connect(113, proxySocket.remoteAddress, () => {
+            ident.write(query);
+            ident.end();
         });
     }
-    context.serviceSocket.on("data", function(data) {
-        Promise.resolve(self.intercept(self.options.downstream, context, data))
-            .then((processedData) => context.proxySocket.write(processedData));
-    });
-    context.serviceSocket.on("close", function(hadError) {
-        if (context.proxySocket !== undefined) {
-            context.proxySocket.destroy();
-        }
-        self.log('Disconnect server for '.concat(uniqueKey(context.proxySocket)));
-    });
-    context.serviceSocket.on("error", function(e) {
-        if (context.proxySocket !== undefined) {
-            context.proxySocket.destroy();
-        }
-        self.log('Error server for '.concat(uniqueKey(context.proxySocket)));
-    });
-};
 
-TcpProxy.prototype.parseServiceOptions = function(context) {
-    var self = this;
-    var i = self.getServiceHostIndex(context.proxySocket);
-    return Object.assign({
-        port: self.servicePorts[parseInt(i, 10)],
-        host: self.serviceHosts[parseInt(i, 10)],
-        localAddress: self.options.localAddress,
-        localPort: self.options.localPort
-    }, self.serviceTlsOptions);
-};
+    handleClient(proxySocket) {
+        const key = uniqueKey(proxySocket);
+        this.log(`Connection from ${key}`);
+        this.proxySockets[key] = proxySocket;
 
-TcpProxy.prototype.getServiceHostIndex = function(proxySocket) {
-    this.serviceHostIndex++;
-    if (this.serviceHostIndex == this.serviceHosts.length) {
-        this.serviceHostIndex = 0;
+        const context = {
+            buffers: [],
+            connected: false,
+            proxySocket: proxySocket
+        };
+
+        proxySocket.on('data', (data) => {
+            this.handleUpstreamData(context, data);
+        });
+
+        proxySocket.on('close', () => {
+            delete this.proxySockets[uniqueKey(proxySocket)];
+            if (context.serviceSocket !== undefined) {
+                context.serviceSocket.destroy();
+            }
+            this.log(`Disconnect client from ${uniqueKey(proxySocket)}`);
+        });
+
+        proxySocket.on('error', (e) => {
+            if (context.serviceSocket !== undefined) {
+                context.serviceSocket.destroy();
+            }
+            this.log(`Error client from ${uniqueKey(proxySocket)}`);
+        });
+
+        this.createServiceSocket(context);
     }
-    var index = this.serviceHostIndex;
-    if (this.options.serviceHostSelected) {
-        index = this.options.serviceHostSelected(proxySocket, index);
-    }
-    return index;
-};
 
-TcpProxy.prototype.writeBuffer = function(context) {
-    context.connected = true;
-    if (context.buffers.length > 0) {
-        for (var i = 0; i < context.buffers.length; i++) {
-            context.serviceSocket.write(context.buffers[parseInt(i, 10)]);
+    async handleUpstreamData(context, data) {
+        const processedData = await this.intercept(this.options.upstream, context, data);
+        if (context.connected) {
+            context.serviceSocket.write(processedData);
+        } else {
+            context.buffers.push(processedData);
+            if (context.serviceSocket === undefined) {
+                this.createServiceSocket(context);
+            }
         }
     }
-};
 
-TcpProxy.prototype.end = function() {
-    this.server.close();
-    for (var key in this.proxySockets) {
-        this.proxySockets[`${key}`].destroy();
-    }
-    this.server.unref();
-};
+    createServiceSocket(context) {
+        const options = this.parseServiceOptions(context);
+        if (this.options.tls === 'both' || this.options.tls === 'server') {
+            context.serviceSocket = tls.connect(options, () => {
+                this.writeBuffer(context);
+            });
+        } else {
+            context.serviceSocket = new net.Socket();
+            context.serviceSocket.connect(options, () => {
+                this.writeBuffer(context);
+            });
+        }
 
-TcpProxy.prototype.log = function(msg) {
-    if (!this.options.quiet) {
-        console.log(msg);
-    }
-};
+        context.serviceSocket.on('data', (data) => {
+            this.intercept(this.options.downstream, context, data).then((processedData) => {
+                context.proxySocket.write(processedData);
+            });
+        });
 
-TcpProxy.prototype.intercept = function(interceptor, context, data) {
-    if (interceptor) {
-        return interceptor(context, data);
+        context.serviceSocket.on('close', () => {
+            if (context.proxySocket !== undefined) {
+                context.proxySocket.destroy();
+            }
+            this.log(`Disconnect server for ${uniqueKey(context.proxySocket)}`);
+        });
+
+        context.serviceSocket.on('error', (e) => {
+            this.log(`Error ${JSON.stringify(e)}, Proxy ${JSON.stringify(context.proxySocket)}`);
+            if (context.proxySocket !== undefined) {
+                context.proxySocket.destroy();
+            }
+            this.log(`Error server for ${uniqueKey(context.proxySocket)}`);
+        });
     }
-    return data;
-};
+
+    parseServiceOptions(context) {
+        const i = this.getServiceHostIndex(context.proxySocket);
+        return Object.assign({
+            port: this.servicePorts[parseInt(i, 10)],
+            host: this.serviceHosts[parseInt(i, 10)],
+            localAddress: this.options.localAddress,
+            localPort: this.options.localPort
+        }, this.serviceTlsOptions);
+    }
+
+    getServiceHostIndex(proxySocket) {
+        this.serviceHostIndex++;
+        if (this.serviceHostIndex === this.serviceHosts.length) {
+            this.serviceHostIndex = 0;
+        }
+        let index = this.serviceHostIndex;
+        if (this.options.serviceHostSelected) {
+            index = this.options.serviceHostSelected(proxySocket, index);
+        }
+        return index;
+    }
+
+    writeBuffer(context) {
+        context.connected = true;
+        for (const buffer of context.buffers) {
+            context.serviceSocket.write(buffer);
+        }
+        context.buffers = []; // Clear buffer after writing
+    }
+
+    end() {
+        this.server.close();
+        for (const key in this.proxySockets) {
+            this.proxySockets[key].destroy();
+        }
+        this.server.unref();
+    }
+
+    log(msg) {
+        if (!this.options.quiet) {
+            console.log(msg);
+        }
+    }
+
+    async intercept(interceptor, context, data) {
+        if (interceptor) {
+            return await interceptor(context, data);
+        }
+        return data;
+    }
+}

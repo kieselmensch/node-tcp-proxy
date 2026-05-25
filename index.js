@@ -1,2 +1,2 @@
-var proxy = require("./tcp-proxy");
+const proxy = require("./tcp-proxy");
 exports.createProxy = proxy.createProxy;

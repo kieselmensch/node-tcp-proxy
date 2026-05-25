@@ -13,7 +13,7 @@
         "tcpproxy": "./tcp-proxy-cli.js"
     },
     "dependencies": {
-        "commander": "^2.19.0"
+        "commander": "^13.0.0"
     },
     "devDependencies": {
         "eslint": "^9.38.0",
