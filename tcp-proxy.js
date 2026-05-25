@@ -39,8 +39,7 @@ class TcpProxy {
         this.options = this.parseOptions(options);
 
         this.proxyTlsOptions = {
-            passphrase: this.options.passphrase,
-            secureProtocol: 'TLSv1_2_method'
+            passphrase: this.options.passphrase
         };
 
         if (this.options.tls) {
