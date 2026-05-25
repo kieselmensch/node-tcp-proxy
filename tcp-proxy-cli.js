@@ -15,7 +15,7 @@ program
     .option('-m, --localAddress <address>', 'IP address of interface to use to connect to service')
     .option('-l, --localPort <port>', 'Port number to use to connect to service')
     .option('-q, --q', 'Be quiet', false)
-    .option('-t, --tls [both|client|server]', 'Use TLS 1.2 with clients, server or both', false)
+    .option('-t, --tls [both|client|server]', 'Use TLS with clients, server or both', false)
     .option('-u, --rejectUnauthorized [value]', 'Do not accept invalid certificate', 'true')
     .option('-c, --pfx [file]', 'Private key file', require.resolve("./cert.pfx"))
     .option('-a, --passphrase [value]', 'Passphrase to access private key file', 'abcd')
