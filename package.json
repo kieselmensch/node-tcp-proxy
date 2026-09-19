@@ -19,6 +19,5 @@
         "eslint": "^9.38.0",
         "eslint-config-google": "^0.14.0",
         "eslint-plugin-security": "^3.0.1"
-    },
-    "false": {}
+    }
 }
