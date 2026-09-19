@@ -48,8 +48,7 @@ class TcpProxy {
         }
 
         this.serviceTlsOptions = {
-            rejectUnauthorized: this.options.rejectUnauthorized,
-            secureProtocol: 'TLSv1_2_method'
+            rejectUnauthorized: this.options.rejectUnauthorized
         };
 
         this.proxySockets = {};
@@ -72,7 +71,6 @@ class TcpProxy {
     parseOptions(options) {
         return Object.assign({
             quiet: true,
-            pfx: require.resolve('./cert.pfx'),
             passphrase: 'abcd',
             rejectUnauthorized: true,
             identUsers: [],

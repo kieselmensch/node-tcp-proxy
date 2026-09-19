@@ -15,4 +15,5 @@ services:
             NODE_ENV: production
         ports:
             - 58241:58241
+        command: ["--proxyPort", "58241", "--serviceHost", "192.168.200.10", "--servicePort", "993"]
 

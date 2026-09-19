@@ -17,7 +17,7 @@ program
     .option('-q, --q', 'Be quiet', false)
     .option('-t, --tls [both|client|server]', 'Use TLS with clients, server or both', false)
     .option('-u, --rejectUnauthorized [value]', 'Do not accept invalid certificate', 'true')
-    .option('-c, --pfx [file]', 'Private key file', require.resolve("./cert.pfx"))
+    .option('-c, --pfx [file]', 'Private key file')
     .option('-a, --passphrase [value]', 'Passphrase to access private key file', 'abcd')
     .option('-i, --identUsers [user[,...]]', 'Comma-separated list of authorized users', '')
     .option('-A, --allowedIPs [ip1[,...]]', 'Comma-separated list of allowed IPs, overrides -i', '')
